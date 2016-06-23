@@ -15,10 +15,10 @@
 # for detailed explanation of these parameters
 
 # method
-KERNEL_ONLY="no"					# build only kernel
+KERNEL_ONLY=""						# leave empty to select each time, set to "yes" or "no" to skip dialog prompt
 KERNEL_CONFIGURE="no"					# want to change my default configuration
 CLEAN_LEVEL="make,debs"					# comma-separated list of clean targets: "make" = make clean for selected kernel and u-boot,
-							# "debs" = delete pckages in "./output/debs" for current branch and family,
+							# "debs" = delete packages in "./output/debs" for current branch and family,
 							# "alldebs" - delete all packages in "./output/debs", "images" = delete "./output/images",
 							# "cache" = delete "./output/cache", "sources" = delete "./sources"
 # user
@@ -27,9 +27,11 @@ CONSOLE_CHAR="UTF-8"
 
 # advanced
 KERNEL_KEEP_CONFIG="no"					# overwrite kernel config before compilation
-EXTERNAL="yes"						# compile extra drivers`
+EXTERNAL="yes"						# build and install extra applications and drivers
+DEBUG_MODE="no"					# wait that you make changes to uboot and kernel source and creates patches
 FORCE_CHECKOUT="yes"					# ignore manual changes to source
-BUILD_ALL="no"						# cycle through selected boards and make images
+BUILD_ALL="no"						# cycle through available boards and make images or kernel/u-boot packages.
+							# set KERNEL_ONLY to "yes" or "no" to build all kernels/all images
 
 # build script version to use
 LIB_TAG=""						# empty for latest version,
@@ -37,19 +39,17 @@ LIB_TAG=""						# empty for latest version,
 							# or commit hash
 #--------------------------------------------------------------------------------------------------------------------------------
 
-# source is where we start the script
+# source is where compile.sh is located
 SRC=$(pwd)
-
 # destination
-DEST=$(pwd)/output
-
-# sources download
-SOURCES=$(pwd)/sources
+DEST=$SRC/output
+# sources for compilation
+SOURCES=$SRC/sources
 
 #--------------------------------------------------------------------------------------------------------------------------------
 # To preserve proper librarires updating
 #--------------------------------------------------------------------------------------------------------------------------------
-if [[ -f main.sh && -d bin ]]; then
+if [[ -f $SRC/main.sh && -d $SRC/bin ]]; then
 	echo -e "[\e[0;31m error \x1B[0m] Copy this file one level up, alter and run again."
 	exit
 fi
@@ -95,7 +95,7 @@ fi
 #--------------------------------------------------------------------------------------------------------------------------------
 # Do we need to build all images
 #--------------------------------------------------------------------------------------------------------------------------------
-if [[ $BUILD_ALL == yes ]]; then
+if [[ $BUILD_ALL == yes || $BUILD_ALL == demo ]]; then
 	source $SRC/lib/build-all.sh
 else
 	source $SRC/lib/main.sh
@@ -103,4 +103,4 @@ fi
 
 # If you are committing new version of this file, increment VERSION
 # Only integers are supported
-# VERSION=15
+# VERSION=19

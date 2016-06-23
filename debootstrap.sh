@@ -14,17 +14,15 @@
 # shrinking_raw_image
 # closing_image
 # install_packet
+# umount_image
 
 custom_debootstrap (){
 #---------------------------------------------------------------------------------------------------------------------------------
 # Create clean and fresh Debian and Ubuntu image template if it does not exists
 #---------------------------------------------------------------------------------------------------------------------------------
 
-# is boot partition to big?
-#if [ "$SDSIZE" -le "$(($OFFSET+$BOOTSIZE))" ]; then
-#	display_alert "Image size too small." "$BOOTSIZE > $SDSIZE" "err"
-#	exit
-#fi
+# needed if process failed in the middle
+umount_image
 
 # create needed directories and mount image to next free loop device
 rm -rf $CACHEDIR/sdcard/
@@ -63,7 +61,15 @@ parted -s $LOOP -- mklabel msdos
 if [ "$BOOTSIZE" -eq "0" ]; then
 	parted -s $LOOP -- mkpart primary ext4  $ROOTSTART"s" -1s
 	partprobe $LOOP
-	mkfs.ext4 -q $LOOP"p1"
+	
+	# older mkfs.ext4 desn't know about 64bit and metadata_csum options
+	local codename=$(lsb_release -sc)
+	if [[ "$codename" == "sid" ]]; then
+		mkfs.ext4 -O ^64bit,^metadata_csum,uninit_bg -q $LOOP"p1"		
+	else
+		mkfs.ext4 -q $LOOP"p1"
+	fi
+	
 	mount $LOOP"p1" $CACHEDIR/sdcard/
 else
 	parted -s $LOOP -- mkpart primary fat16  $BOOTSTART"s" $BOOTEND"s"
@@ -101,14 +107,10 @@ if [ ! -f "$cache_fname" ]; then
 # debootstrap base system
 [[ -n $PACKAGE_LIST_EXCLUDE ]] && local package_exclude="--exclude="${PACKAGE_LIST_EXCLUDE// /,}
 [[ $DISTRIBUTION == "Debian" ]] && local redir="http://httpredir.debian.org/debian/"
-debootstrap --include=openssh-server,debconf-utils $package_exclude --arch=$ARCH --foreign $RELEASE $CACHEDIR/sdcard/ $redir | dialog --backtitle "$backtitle" --title "Debootstrap $DISTRIBUTION $RELEASE base system to image template ..." --progressbox $TTY_Y $TTY_X
+debootstrap --include=openssh-server $package_exclude --arch=$ARCH --foreign $RELEASE $CACHEDIR/sdcard/ $redir | dialog --backtitle "$backtitle" --title "Debootstrap $DISTRIBUTION $RELEASE base system to image template ..." --progressbox $TTY_Y $TTY_X
 
 # we need emulator for second stage
-if [[ $ARCH == *64* ]]; then
-	cp /usr/bin/qemu-aarch64-static $CACHEDIR/sdcard/usr/bin/		
-	else
-	cp /usr/bin/qemu-arm-static $CACHEDIR/sdcard/usr/bin/
-fi
+cp /usr/bin/$QEMU_BINARY $CACHEDIR/sdcard/usr/bin/
 
 # and keys
 d=$CACHEDIR/sdcard/usr/share/keyrings/
@@ -127,7 +129,7 @@ mount -t devtmpfs chdev $CACHEDIR/sdcard/dev || mount --bind /dev $CACHEDIR/sdca
 mount -t devpts chpts $CACHEDIR/sdcard/dev/pts
 
 # choose proper apt list
-cp $SRC/lib/config/sources.list.$RELEASE $CACHEDIR/sdcard/etc/apt/sources.list
+cp $SRC/lib/config/apt/sources.list.$RELEASE $CACHEDIR/sdcard/etc/apt/sources.list
 
 # add armbian key
 echo "deb http://apt.armbian.com $RELEASE main" > $CACHEDIR/sdcard/etc/apt/sources.list.d/armbian.list
@@ -267,7 +269,7 @@ KILLPROC=$(ps -uax | pgrep acpid | tail -1); if [ -n "$KILLPROC" ]; then kill -9
 # same info outside the image
 cp $CACHEDIR/sdcard/etc/armbian.txt $CACHEDIR/
 sleep 2
-rm -f $CACHEDIR/sdcard/usr/bin/qemu-arm-static $CACHEDIR/sdcard/usr/bin/qemu-aarch64-static
+rm -f $CACHEDIR/sdcard/usr/bin/$QEMU_BINARY
 sleep 2
 umount -l $CACHEDIR/sdcard/boot > /dev/null 2>&1 || /bin/true
 umount -l $CACHEDIR/sdcard/
@@ -299,7 +301,7 @@ if [[ $GPG_PASS != "" ]] ; then
 fi
 display_alert "Signing and compressing" "Please wait!" "info"
 mkdir -p $DEST/images
-if [[ $COMPRESS_OUTPUTIMAGE == no ]]; then
+if [[ $COMPRESS_OUTPUTIMAGE != yes ]]; then
 	rm -f *.asc imagewriter.* armbian.txt
 	mv *.raw $DEST/images/
 else
@@ -326,21 +328,26 @@ j=1
 declare -a PACKETS=($1)
 skupaj=${#PACKETS[@]}
 while [[ $i -lt $skupaj ]]; do
-procent=$(echo "scale=2;($j/$skupaj)*100"|bc)
-procent=${procent%.*}
-		x=${PACKETS[$i]}
-		if [[ $3 == "host" ]]; then
-			DEBIAN_FRONTEND=noninteractive apt-get -qq -y install $x >> $DEST/debug/install.log  2>&1
-		else
-			chroot $CACHEDIR/sdcard /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get -qq -y install $x --no-install-recommends" >> $DEST/debug/install.log 2>&1
-		fi
+	procent=$(echo "scale=2;($j/$skupaj)*100"|bc)
+	procent=${procent%.*}
+	x=${PACKETS[$i]}
+	chroot $CACHEDIR/sdcard /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get -qq -y install $x --no-install-recommends" >> $DEST/debug/install.log 2>&1
+	if [ $? -ne 0 ]; then display_alert "Installation of package failed" "$INSTALL" "err"; exit 1; fi
+	printf '%.0f\n' $procent | dialog --backtitle "$backtitle" --title "$2" --gauge "\n\n$x" 9 70
+	i=$[$i+1]
+	j=$[$j+1]
+done
+}
 
-		if [ $? -ne 0 ]; then display_alert "Installation of package failed" "$INSTALL" "err"; exit 1; fi
-
-		if [[ $4 != "quiet" ]]; then
-			printf '%.0f\n' $procent | dialog --backtitle "$backtitle" --title "$2" --gauge "\n\n$x" 9 70
-		fi
-		i=$[$i+1]
-		j=$[$j+1]
+umount_image (){
+umount -l $CACHEDIR/sdcard/dev/pts >/dev/null 2>&1
+umount -l $CACHEDIR/sdcard/dev >/dev/null 2>&1
+umount -l $CACHEDIR/sdcard/proc >/dev/null 2>&1
+umount -l $CACHEDIR/sdcard/sys >/dev/null 2>&1
+umount -l $CACHEDIR/sdcard/tmp >/dev/null 2>&1
+umount -l $CACHEDIR/sdcard >/dev/null 2>&1
+x=$(losetup -a | awk '{ print $1 }' | rev | cut -c 2- | rev | tac)
+for y in $x; do
+	losetup -d $y
 done
 }

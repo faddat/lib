@@ -49,6 +49,10 @@ Run the script
         - Realtek RT8192 wireless driver
         - Mediatek MT7601U wireless - driver
         - Sunxi display control
+        - hostapd from sources
+- **DEBUG_MODE** (yes|no)
+	- set to "yes" will prompt you right before the compilation starts to make changes to the source code. Separate for u-boot and kernel. It will also create a patch out of this. If you want that this patch is included in the normal run, you need to copy it to appropriate directory
+	- set to "no" compilation will run uninterrupted 
 - **FORCE_CHECKOUT** (yes|no):
     - set to "yes" to force overwrite any changed or manually patched kernel, u-boot and other sources
     - set to "no" to keep all changes to sources
@@ -64,10 +68,10 @@ Run the script
 - **PROGRESS_DISPLAY** (none|plain|**dialog**): way to display output of verbose processes - compilation, packaging, debootstrap
 - **PROGRESS_LOG_TO_FILE** (yes|**no**): duplicate output, affected by previous option, to log files `output/debug/*.log`
 - **USE_MAINLINE_GOOGLE_MIRROR** (yes|**no**): use `googlesource.com` mirror for downloading mainline kernel sources, may be faster than `git.kernel.org` depending on your location
-- **EXTENDED_DEBOOTSTRAP** (yes|**no**): use new debootstrap and image creation process
+- **EXTENDED_DEBOOTSTRAP** (**yes**|no): use new debootstrap and image creation process
 - **FORCE_USE_RAMDISK** (yes|no): overrides autodetect for using tmpfs in new debootstrap and image creation process. Takes effect only if `EXTENDED_DEBOOTSTRAP` is set to "yes"
 - **FIXED_IMAGE_SIZE** (integer): create image file of this size (in megabytes) instead of minimal. Takes effect only if `EXTENDED_DEBOOTSTRAP` is set to "yes"
-- **COMPRESS_OUTPUTIMAGE** (**yes**|no): create compressed archive with image file and GPG signature for redistribution
+- **COMPRESS_OUTPUTIMAGE** (yes|**no**): create compressed archive with image file and GPG signature for redistribution
 - **SEVENZIP** (yes|**no**): create .7z archive with extreme compression ratio instead of .zip
 - **ROOTFS_TYPE** (**ext4**|f2fs|btrfs|nfs|fel): create image with different root filesystems instead of default ext4. Requires setting FIXED_IMAGE_SIZE to actual size of your SD card for F2FS and BTRFS. Takes effect only if `EXTENDED_DEBOOTSTRAP` is set to "yes"
 
@@ -212,7 +216,6 @@ It will be something like this:
 	lib/distributions.sh	system specific installation and fixes
 	lib/main.sh				user input and script calls
 	lib/makeboarddeb.sh		creates board support package .deb
-	lib/patching.sh			board and system dependend kernel & u-boot patch calls
 	lib/repo-update.sh		creates and updates your local repository
 	lib/repo-show-sh		show packets in your local repository
 	lib/upgrade.sh			script to upgrade older images
