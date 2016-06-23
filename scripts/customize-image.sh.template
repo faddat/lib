@@ -24,6 +24,9 @@ case $RELEASE in
 	# your code here
 	;;
 	xenial)
-	# your code here
+	curl -L https://raw.githubusercontent.com/dilgerma/weave/rpi-latest-release/weave -o /usr/local/bin/weave
+	chmod +x /usr/local/bin/weave
+	curl -L https://raw.githubusercontent.com/dilgerma/scope/latest-rpi-release/scope -o /usr/local/bin/scope
+	chmod +x /usr/local/bin/scope
 	;;
 esac
