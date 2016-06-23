@@ -28,5 +28,9 @@ case $RELEASE in
 	chmod +x /usr/local/bin/weave
 	curl -L https://raw.githubusercontent.com/dilgerma/scope/latest-rpi-release/scope -o /usr/local/bin/scope
 	chmod +x /usr/local/bin/scope
+	sudo wget -O /etc/systemd/system/consul-onboot.service https://gist.githubusercontent.com/faddat/d143c53cbebba481f9159623b4472d1a/raw/79d7f89862f44d00f9a424b91489b72c77d1bf78/consul-onboot.service
+	sudo wget -O /etc/systemd/system/nomad-onboot.service https://gist.githubusercontent.com/faddat/d143c53cbebba481f9159623b4472d1a/raw/79d7f89862f44d00f9a424b91489b72c77d1bf78/nomad.service
+	sudo wget -O /usr/bin/consul-onboot https://gist.githubusercontent.com/faddat/d143c53cbebba481f9159623b4472d1a/raw/79d7f89862f44d00f9a424b91489b72c77d1bf78/consul-onboot
+	sudo wget -O /usr/bin/nomad-onboot https://gist.githubusercontent.com/faddat/d143c53cbebba481f9159623b4472d1a/raw/79d7f89862f44d00f9a424b91489b72c77d1bf78/nomad-onboot
 	;;
 esac
